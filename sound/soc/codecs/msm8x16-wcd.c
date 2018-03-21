@@ -5129,6 +5129,11 @@ static const struct snd_soc_dapm_widget msm8x16_wcd_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA_E("LINEOUT PA", MSM8X16_WCD_A_ANALOG_RX_LO_EN_CTL,
 			5, 0 , NULL, 0, msm8x16_wcd_codec_enable_lo_pa,
 			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+#else
+	SND_SOC_DAPM_PGA_E("LINEOUT PA", MSM8X16_WCD_A_ANALOG_RX_LO_EN_CTL,
+			5, 0 , NULL, 0, msm8x16_wcd_codec_enable_lo_pa,
+			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+#endif
 
 	SND_SOC_DAPM_SUPPLY("VDD_SPKDRV", SND_SOC_NOPM, 0, 0,
 			    msm89xx_wcd_codec_enable_vdd_spkr,
@@ -6546,4 +6551,3 @@ module_exit(msm8x16_wcd_codec_exit);
 MODULE_DESCRIPTION("MSM8x16 Audio codec driver");
 MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(of, msm8x16_wcd_spmi_id_table);
-

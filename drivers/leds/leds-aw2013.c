@@ -328,8 +328,10 @@ static ssize_t aw2013_store_blink(struct device *dev,
 	return len;
 }
 
-static ssize_t aw2013_led_time_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+
+static int create_aw2013_led(const struct aw2013_led *template,
+	struct aw2013_led_data *led_dat, struct device *parent,
+	int (*blink_set)(unsigned, int, unsigned long *, unsigned long *))
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct aw2013_led *led =
@@ -652,5 +654,8 @@ static void __exit aw2013_led_exit(void)
 }
 module_exit(aw2013_led_exit);
 
-MODULE_DESCRIPTION("AWINIC aw2013 LED driver");
-MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("ming he <heming@wingtech.com>");
+MODULE_DESCRIPTION("aw2013 driver");
+MODULE_LICENSE("GPL");
+
+
