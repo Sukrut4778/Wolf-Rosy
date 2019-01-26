@@ -329,9 +329,6 @@ struct device_node *of_batterydata_get_best_profile(
 {
 	struct batt_ids batt_ids;
 	struct device_node *node, *best_node = NULL;
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
-	struct device_node *default_node = NULL;
-#endif
 	struct power_supply *psy;
 	const char *battery_type = NULL;
 	union power_supply_propval ret = {0, };
@@ -395,23 +392,11 @@ struct device_node *of_batterydata_get_best_profile(
 				delta = abs(batt_ids.kohm[i] - batt_id_kohm);
 				limit = (batt_ids.kohm[i] * id_range_pct) / 100;
 				in_range = (delta <= limit);
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
-				if (in_range != 0)
-					match = 1;
-#endif
 				/*
 				 * Check if the delta is the lowest one
 				 * and also if the limits are in range
 				 * before selecting the best node.
 				 */
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-				if (batt_ids.kohm[i] == 82)
-                                        default_node = node;
-#endif
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-				if (batt_ids.kohm[i] == 50)
-					default_node = node;
-#endif
 				if ((delta < best_delta || !best_node)
 					&& in_range) {
 					best_node = node;
@@ -448,9 +433,6 @@ struct device_node *of_batterydata_get_best_profile(
 	}
 
 	/* check that profile id is in range of the measured batt_id */
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
-	if (checknum >
-#else
 	if (abs(best_id_kohm - batt_id_kohm) >
 			((best_id_kohm * id_range_pct) / 100) && !default_id) {
 		pr_err("out of range: profile id %d batt id %d pct %d",
