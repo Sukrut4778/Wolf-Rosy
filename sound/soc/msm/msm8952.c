@@ -123,11 +123,7 @@ extern unsigned char AW87319_Audio_OFF(void);
 static struct wcd_mbhc_config mbhc_cfg = {
 	.read_fw_bin = false,
 	.calibration = NULL,
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	.detect_extn_cable = false,
-#else
 	.detect_extn_cable = true,
-#endif
 	.mono_stero_detection = false,
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = false,
@@ -286,9 +282,6 @@ int is_ext_spk_gpio_support(struct platform_device *pdev,
 {
 	const char *spk_ext_pa = "qcom,msm-spk-ext-pa";
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	int ret;
-#endif
 	pr_debug("%s:Enter\n", __func__);
 
 	pdata->spk_ext_pa_gpio = of_get_named_gpio(pdev->dev.of_node,
@@ -308,20 +301,7 @@ int is_ext_spk_gpio_support(struct platform_device *pdev,
 			dev_err(&pdev->dev, "%s: request spk_ext_pa_gpio  fail!\n", __func__);
 		#endif
 		}
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-		ext_pa_gpio = pdata->spk_ext_pa_gpio;
-		ret = msm_get_gpioset_index(CLIENT_WCD_INT,
-						"ext_pa_gpio");
-		if (ret < 0) {
-			pr_err("%s: gpio set name does not exist: %s",
-						__func__, "ext_pa_gpio");
-			return ret;
-		}
-#endif
 	}
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	gpio_direction_output(pdata->spk_ext_pa_gpio, 0);
-#endif
 	return 0;
 }
 
@@ -331,12 +311,7 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 	#else
 	struct snd_soc_card *card = codec->component.card;
 	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
 	int ret;
-#endif
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	int pa_mode = EXT_PA_MODE;
-#endif
 
 	if (!gpio_is_valid(pdata->spk_ext_pa_gpio)) {
 		pr_err("%s: Invalid gpio: %d\n", __func__,
@@ -359,7 +334,6 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 		AW87319_Audio_Speaker();
 		#else
 		ret = msm_gpioset_activate(CLIENT_WCD_INT, "ext_spk_gpio");
-#endif
 		if (ret) {
 			pr_err("%s: gpio set cannot be de-activated %s\n",
 					__func__, "ext_spk_gpio");
@@ -378,12 +352,7 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 		AW87319_Audio_OFF();
 		#else
 		gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
-#ifndef CONFIG_MACH_XIAOMI_MIDO
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-		ret = msm_gpioset_suspend(CLIENT_WCD_INT, "ext_pa_gpio");
-#else
 		ret = msm_gpioset_suspend(CLIENT_WCD_INT, "ext_spk_gpio");
-#endif
 		if (ret) {
 			pr_err("%s: gpio set cannot be de-activated %s\n",
 					__func__, "ext_spk_gpio");
@@ -2777,41 +2746,7 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
 		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA29,
-        },
-#ifdef CONFIG_SND_SOC_MAX98927
-        {/* hw:x,41 */
-		.name = "Quinary MI2S TX_Hostless",
-		.stream_name = "Quinary MI2S_TX Hostless Capture",
-		.cpu_dai_name = "QUIN_MI2S_TX_HOSTLESS",
-		.platform_name = "msm-pcm-hostless",
-		.dynamic = 1,
-		.dpcm_capture = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			SND_SOC_DPCM_TRIGGER_POST},
-		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
 	},
-	{ /* hw:x,42 */
-		.name = "Quinary MI2S_RX Hostless",
-		.stream_name = "Quinary MI2S_RX Hostless",
-		.cpu_dai_name = "QUIN_MI2S_RX_HOSTLESS",
-		.platform_name	= "msm-pcm-hostless",
-		.dynamic = 1,
-		.dpcm_playback = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			SND_SOC_DPCM_TRIGGER_POST},
-		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
-		.ignore_suspend = 1,
-		 /* this dailink has playback support */
-		.ignore_pmdown_time = 1,
-		/* This dainlink has MI2S support */
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-	},
-#endif
 	/* Backend I2S DAI Links */
 	{
 		.name = LPASS_BE_PRI_MI2S_RX,
@@ -3065,13 +3000,8 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.stream_name = "Quinary MI2S Capture",
 		.cpu_dai_name = "msm-dai-q6-mi2s.5",
 		.platform_name = "msm-pcm-routing",
-#ifdef CONFIG_SND_SOC_MAX98927
-		.codec_dai_name = "max98927-aif1",
-		.codec_name = "max98927",
-#else
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
-#endif
 		.no_pcm = 1,
 		.dpcm_capture = 1,
 		.be_id = MSM_BACKEND_DAI_QUINARY_MI2S_TX,
@@ -3104,13 +3034,8 @@ static struct snd_soc_dai_link msm8952_quin_dai_link[] = {
 		.stream_name = "Quinary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.5",
 		.platform_name = "msm-pcm-routing",
-#ifdef CONFIG_SND_SOC_MAX98927
-		.codec_dai_name = "max98927-aif1",
-		.codec_name = "max98927",
-#else
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
-#endif
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.be_id = MSM_BACKEND_DAI_QUINARY_MI2S_RX,

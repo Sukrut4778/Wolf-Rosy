@@ -4944,27 +4944,10 @@ static int smbchg_restricted_charging(struct smbchg_chip *chip, bool enable)
 	return rc;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-extern void ist30xx_set_ta_mode(bool mode);
-extern void tpd_usb_plugin(bool mode);
-extern void gtp_usb_plugin(bool mode);
-int set_usb_charge_mode_par = 0;
-#endif
-
 static void handle_usb_removal(struct smbchg_chip *chip)
 {
 	struct power_supply *parallel_psy = get_parallel_psy(chip);
 	int rc;
-
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	if (set_usb_charge_mode_par == 1) {
-		ist30xx_set_ta_mode(0);
-	} else if (set_usb_charge_mode_par == 2) {
-		tpd_usb_plugin(0);
-	} else if (set_usb_charge_mode_par == 3) {
-		gtp_usb_plugin(0);
-	}
-#endif
 
 	pr_smb(PR_STATUS, "triggered\n");
 	smbchg_aicl_deglitch_wa_check(chip);
@@ -5045,12 +5028,6 @@ static void handle_usb_insertion(struct smbchg_chip *chip)
 	pr_smb(PR_STATUS, "triggered\n");
 	/* usb inserted */
 	read_usb_type(chip, &usb_type_name, &usb_supply_type);
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	if (usb_supply_type == POWER_SUPPLY_TYPE_USB_CDP || usb_supply_type == POWER_SUPPLY_TYPE_USB) {
-		rc = rerun_apsd(chip);
-		read_usb_type(chip, &usb_type_name, &usb_supply_type);
-	}
-#endif
 	pr_smb(PR_STATUS,
 		"inserted type = %d (%s)", usb_supply_type, usb_type_name);
 
@@ -6145,7 +6122,6 @@ static void smbchg_external_power_changed(struct power_supply *psy)
 
 	read_usb_type(chip, &usb_type_name, &usb_supply_type);
 
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
 	if (!rc && usb_supply_type == POWER_SUPPLY_TYPE_USB &&
 			prop.intval != POWER_SUPPLY_TYPE_USB &&
 			is_usb_present(chip)) {
@@ -6185,7 +6161,6 @@ static void smbchg_external_power_changed(struct power_supply *psy)
 
 	if (usb_supply_type != POWER_SUPPLY_TYPE_USB)
 		goto  skip_current_for_non_sdp;
-#endif
 
 	pr_smb(PR_MISC, "usb type = %s current_limit = %d\n",
 			usb_type_name, current_limit);
@@ -6604,17 +6579,6 @@ static irqreturn_t batt_warm_handler(int irq, void *_chip)
 {
 	struct smbchg_chip *chip = _chip;
 	u8 reg = 0;
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
-	int rc;
-	/* set the warm float voltage compensation,set the warm float voltage to 4.1V */
-	if (chip->float_voltage_comp != -EINVAL) {
-		rc = smbchg_float_voltage_comp_set(chip, chip->float_voltage_comp);
-	if (rc < 0)
-		dev_err(chip->dev, "Couldn't set float voltage comp rc = %d\n", rc);
-	pr_smb(PR_STATUS, "set float voltage comp to %d\n", chip->float_voltage_comp);
-
-	}
-#endif
 
 	smbchg_read(chip, &reg, chip->bat_if_base + RT_STS, 1);
 	chip->batt_warm = !!(reg & HOT_BAT_SOFT_BIT);
@@ -9022,4 +8986,3 @@ module_exit(smbchg_exit);
 MODULE_DESCRIPTION("QPNP SMB Charger");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:qpnp-smbcharger");
-

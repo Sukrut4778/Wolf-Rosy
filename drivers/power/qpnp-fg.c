@@ -130,11 +130,6 @@ struct fg_mem_setting {
 	int	value;
 };
 
-struct fg_saved_data {
-	union power_supply_propval val;
-	unsigned long last_req_expires;
-};
-
 struct fg_mem_data {
 	u16	address;
 	u8	offset;
@@ -243,17 +238,10 @@ enum fg_mem_data_index {
 
 static struct fg_mem_setting settings[FG_MEM_SETTING_MAX] = {
 	/*       ID                    Address, Offset, Value*/
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-        SETTING(SOFT_COLD,       0x454,   0,      150),
-        SETTING(SOFT_HOT,        0x454,   1,      450),
-        SETTING(HARD_COLD,       0x454,   2,      0),
-        SETTING(HARD_HOT,        0x454,   3,      450),
-#else
 	SETTING(SOFT_COLD,       0x454,   0,      100),
 	SETTING(SOFT_HOT,        0x454,   1,      400),
 	SETTING(HARD_COLD,       0x454,   2,      50),
 	SETTING(HARD_HOT,        0x454,   3,      450),
-#endif
 	SETTING(RESUME_SOC,      0x45C,   1,      0),
 	SETTING(BCL_LM_THRESHOLD, 0x47C,   2,      50),
 	SETTING(BCL_MH_THRESHOLD, 0x47C,   3,      752),
@@ -261,11 +249,7 @@ static struct fg_mem_setting settings[FG_MEM_SETTING_MAX] = {
 	SETTING(CHG_TERM_CURRENT, 0x4F8,   2,      250),
 	SETTING(IRQ_VOLT_EMPTY,	 0x458,   3,      3100),
 	SETTING(CUTOFF_VOLTAGE,	 0x40C,   0,      3200),
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
-	SETTING(VBAT_EST_DIFF,	 0x000,   0,      200),
-#else
 	SETTING(VBAT_EST_DIFF,	 0x000,   0,      30),
-#endif
 	SETTING(DELTA_SOC,	 0x450,   3,      1),
 	SETTING(BATT_LOW,	 0x458,   0,      4200),
 	SETTING(THERM_DELAY,	 0x4AC,   3,      0),
@@ -347,11 +331,7 @@ module_param_named(
 	battery_type, fg_batt_type, charp, S_IRUSR | S_IWUSR
 );
 
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
-static int fg_sram_update_period_ms = 3000;
-#else
 static int fg_sram_update_period_ms = 30000;
-#endif
 module_param_named(
 	sram_update_period_ms, fg_sram_update_period_ms, int, S_IRUSR | S_IWUSR
 );
@@ -491,7 +471,6 @@ struct fg_chip {
 	struct device		*dev;
 	struct spmi_device	*spmi;
 	u8			pmic_subtype;
-	u8			zero_count;
 	u8			pmic_revision[4];
 	u8			revision[4];
 	u16			soc_base;
@@ -660,7 +639,6 @@ struct fg_chip {
 	bool			batt_info_restore;
 	bool			*batt_range_ocv;
 	int			*batt_range_pct;
-	struct fg_saved_data	saved_data[POWER_SUPPLY_PROP_MAX];
 };
 
 /* FG_MEMIF DEBUGFS structures */
@@ -2712,20 +2690,6 @@ out:
 	return rc;
 }
 
-// Read the beat count and write it into the beat_count arg;
-// return non-zero on failure.
-static int read_beat(struct fg_chip *chip, u8 *beat_count)
-{
-	int rc = fg_read(chip, beat_count,
-			 chip->mem_base + MEM_INTF_FG_BEAT_COUNT, 1);
-	if (rc)
-		pr_err("failed to read beat count rc=%d\n", rc);
-	else if (fg_debug_mask & FG_STATUS)
-		pr_info("current: %d, prev: %d\n", *beat_count,
-			chip->last_beat_count);
-	return rc;
-}
-
 #define SANITY_CHECK_PERIOD_MS	5000
 static void check_sanity_work(struct work_struct *work)
 {
@@ -2736,24 +2700,19 @@ static void check_sanity_work(struct work_struct *work)
 	u8 beat_count;
 	bool tried_once = false;
 
-	// Try one beat check once up-front to avoid the common
-	// case where the beat has changed and we don't need to hold
-	// the chip awake.
-	rc = read_beat(chip, &beat_count);
-	if (rc == 0 && chip->last_beat_count != beat_count) {
-		chip->last_beat_count = beat_count;
-		schedule_delayed_work(
-			&chip->check_sanity_work,
-			msecs_to_jiffies(SANITY_CHECK_PERIOD_MS));
-		return;
-	}
-
 	fg_stay_awake(&chip->sanity_wakeup_source);
 
 try_again:
-	rc = read_beat(chip, &beat_count);
-	if (rc)
+	rc = fg_read(chip, &beat_count,
+			chip->mem_base + MEM_INTF_FG_BEAT_COUNT, 1);
+	if (rc) {
+		pr_err("failed to read beat count rc=%d\n", rc);
 		goto resched;
+	}
+
+	if (fg_debug_mask & FG_STATUS)
+		pr_info("current: %d, prev: %d\n", beat_count,
+			chip->last_beat_count);
 
 	if (chip->last_beat_count == beat_count) {
 		if (!tried_once) {
@@ -4037,14 +3996,6 @@ static bool is_usb_present(struct fg_chip *chip)
 	return prop.intval != 0;
 }
 
-static bool usb_psy_initialized(struct fg_chip *chip)
-{
-	if (chip->usb_psy)
-		return true;
-	chip->usb_psy = power_supply_get_by_name("usb");
-	return chip->usb_psy;
-}
-
 static bool is_dc_present(struct fg_chip *chip)
 {
 	union power_supply_propval prop = {0,};
@@ -4631,11 +4582,6 @@ static bool fg_validate_battery_info(struct fg_chip *chip)
 		batt_soc = DIV_ROUND_CLOSEST((batt_soc - 1) *
 				(FULL_CAPACITY - 2), FULL_SOC_RAW - 2) + 1;
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	if (batt_soc == FULL_SOC_RAW)
-		chip->batt_info[BATT_INFO_SOC] = 100;
-#endif
-
 	if (*chip->batt_range_ocv && chip->batt_max_voltage_uv > 1000)
 		delta_pct =  DIV_ROUND_CLOSEST(abs(batt_volt_mv -
 				chip->batt_info[BATT_INFO_VOLTAGE]) * 100,
@@ -4716,40 +4662,12 @@ static enum power_supply_property fg_power_props[] = {
 	POWER_SUPPLY_PROP_BATTERY_INFO_ID,
 };
 
-#define FG_RATE_LIM_MS (5 * MSEC_PER_SEC)
-
 static int fg_power_get_property(struct power_supply *psy,
 				       enum power_supply_property psp,
 				       union power_supply_propval *val)
 {
 	struct fg_chip *chip = container_of(psy, struct fg_chip, bms_psy);
-	struct fg_saved_data *sd = chip->saved_data + psp;
-	union power_supply_propval typec_sts = { .intval = -1 };
 	bool vbatt_low_sts;
-
-	switch (psp) {
-	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-	case POWER_SUPPLY_PROP_RESISTANCE_ID:
-	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
-	case POWER_SUPPLY_PROP_CYCLE_COUNT_ID:
-	case POWER_SUPPLY_PROP_CHARGE_NOW:
-	case POWER_SUPPLY_PROP_CHARGE_FULL:
-	case POWER_SUPPLY_PROP_SOC_REPORTING_READY:
-		/* These props don't require a fg query; don't ratelimit them */
-		break;
-	default:
-	if (!sd->last_req_expires)
-			break;
-		if (usb_psy_initialized(chip))
-			power_supply_get_property(chip->usb_psy,
-				POWER_SUPPLY_PROP_TYPEC_MODE, &typec_sts);
-		if (typec_sts.intval == POWER_SUPPLY_TYPEC_NONE &&
-			time_before(jiffies, sd->last_req_expires)) {
-			*val = sd->val;
-			return 0;
-		}
-		break;
-	}
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_BATTERY_TYPE:
@@ -4815,18 +4733,10 @@ static int fg_power_get_property(struct power_supply *psy,
 			val->intval = 1;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-		val->intval = 3080000;
-#else
 		val->intval = chip->nom_cap_uah;
-#endif
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-		val->intval = 3080000;
-#else
 		val->intval = chip->learning_data.learned_cc_uah;
-#endif
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		val->intval = chip->learning_data.cc_uah;
@@ -4861,9 +4771,6 @@ static int fg_power_get_property(struct power_supply *psy,
 	default:
 		return -EINVAL;
 	}
-
-	sd->val = *val;
-	sd->last_req_expires = jiffies + msecs_to_jiffies(FG_RATE_LIM_MS);
 
 	return 0;
 }
@@ -6711,13 +6618,8 @@ wait:
 		goto no_profile;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	if (!chip->input_present)
-		vbat_in_range = get_vbat_est_diff(chip)
-			< 80 * 1000;
-	else
-#endif
-		vbat_in_range = get_vbat_est_diff(chip)
+
+	vbat_in_range = get_vbat_est_diff(chip)
 			< settings[FG_MEM_VBAT_EST_DIFF].value * 1000;
 	profiles_same = memcmp(chip->batt_profile, data,
 					PROFILE_COMPARE_LEN) == 0;
@@ -8318,9 +8220,6 @@ static int fg_common_hw_init(struct fg_chip *chip)
 		}
 	}
 
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
-	rc = fg_mem_masked_write(chip, settings[FG_MEM_DELTA_SOC].address, 0xFF, 1,
-#else
 	rc = fg_mem_masked_write(chip, settings[FG_MEM_DELTA_SOC].address, 0xFF,
 			settings[FG_MEM_DELTA_SOC].value,
 			settings[FG_MEM_DELTA_SOC].offset);
@@ -8986,7 +8885,6 @@ static int fg_probe(struct spmi_device *spmi)
 
 	chip->spmi = spmi;
 	chip->dev = &(spmi->dev);
-	chip->bcl_lpm_disabled = 1;
 
 	wakeup_source_init(&chip->empty_check_wakeup_source.source,
 			"qpnp_fg_empty_check");
