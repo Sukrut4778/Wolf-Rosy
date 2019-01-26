@@ -29,7 +29,8 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/qpnp/power-on.h>
-
+#include <linux/qpnp/qpnp-pbs.h>
+#include <linux/qpnp-misc.h>
 #include <linux/hardware_info.h>
 
 #define CREATE_MASK(NUM_BITS, POS) \
@@ -74,6 +75,7 @@
 #define QPNP_PON_WARM_RESET_REASON2(pon)	((pon)->base + 0xB)
 #define QPNP_PON_OFF_REASON(pon)		((pon)->base + 0xC7)
 #define QPNP_FAULT_REASON1(pon)			((pon)->base + 0xC8)
+#define QPNP_POFF_REASON2(pon)                  ((pon)->base + 0xD)
 #define QPNP_S3_RESET_REASON(pon)		((pon)->base + 0xCA)
 #define QPNP_PON_KPDPWR_S1_TIMER(pon)		((pon)->base + 0x40)
 #define QPNP_PON_KPDPWR_S2_TIMER(pon)		((pon)->base + 0x41)
@@ -639,11 +641,9 @@ int qpnp_pon_is_ps_hold_reset(void)
 	struct qpnp_pon *pon = sys_reset_dev;
 	int rc;
 	u8 reg = 0;
-
-	if (!pon)
+ 	if (!pon)
 		return 0;
-
-	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+ 	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
 			QPNP_POFF_REASON1(pon), &reg, 1);
 	if (rc) {
 		dev_err(&pon->spmi->dev,
@@ -651,35 +651,28 @@ int qpnp_pon_is_ps_hold_reset(void)
 				QPNP_POFF_REASON1(pon), rc);
 		return 0;
 	}
-
-	/* The bit 1 is 1, means by PS_HOLD/MSM controlled shutdown */
+ 	/* The bit 1 is 1, means by PS_HOLD/MSM controlled shutdown */
 	if (reg & 0x2)
 		return 1;
-
-	dev_info(&pon->spmi->dev,
+ 	dev_info(&pon->spmi->dev,
 			"hw_reset reason1 is 0x%x\n",
 			reg);
-
-	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+ 	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
 			QPNP_POFF_REASON2(pon), &reg, 1);
-
-	dev_info(&pon->spmi->dev,
+ 	dev_info(&pon->spmi->dev,
 			"hw_reset reason2 is 0x%x\n",
 			reg);
 	return 0;
 }
 EXPORT_SYMBOL(qpnp_pon_is_ps_hold_reset);
-
-int qpnp_pon_is_lpk(void)
+ int qpnp_pon_is_lpk(void)
 {
 	struct qpnp_pon *pon = sys_reset_dev;
 	int rc;
 	u8 reg = 0;
-
-	if (!pon)
+ 	if (!pon)
 		return 0;
-
-	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+ 	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
 			QPNP_POFF_REASON1(pon), &reg, 1);
 	if (rc) {
 		dev_err(&pon->spmi->dev,
@@ -687,23 +680,17 @@ int qpnp_pon_is_lpk(void)
 				QPNP_POFF_REASON1(pon), rc);
 		return 0;
 	}
-
-
-	if (reg & 0x80)
+ 	if (reg & 0x80)
 		return 1;
-
-	dev_info(&pon->spmi->dev,
+ 	dev_info(&pon->spmi->dev,
 			"hw_reset reason1 is 0x%x\n",
 			reg);
-
-	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+ 	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
 			QPNP_POFF_REASON2(pon), &reg, 1);
-
-	dev_info(&pon->spmi->dev,
+ 	dev_info(&pon->spmi->dev,
 			"hw_reset reason2 is 0x%x\n",
 			reg);
-
-	return 0;
+ 	return 0;
 }
 EXPORT_SYMBOL(qpnp_pon_is_lpk);
 
@@ -972,6 +959,16 @@ void qpnp_kpdpwr_simulate(void)
 static irqreturn_t qpnp_kpdpwr_bark_irq(int irq, void *_pon)
 {
 	return IRQ_HANDLED;
+}
+
+void qpnp_kpdpwr_simulate(void)
+{
+	int rc;
+ 	if (fake_power_pon == NULL)
+		return;
+ 	rc = qpnp_pon_input_dispatch(fake_power_pon, PON_KPDPWR);
+	if (rc)
+		printk(KERN_WARNING "fake_power_pon Unable to send input event\n");
 }
 
 static irqreturn_t qpnp_resin_irq(int irq, void *_pon)
@@ -2095,6 +2092,28 @@ void probe_board_and_set(void)
 	}
 
 	strcpy(board_id, boardid_info);
+}
+
+
+extern char board_id[HARDWARE_MAX_ITEM_LONGTH];
+void probe_board_and_set(void)
+{
+	char *boadrid_start, *boardvol_start;
+	char boardid_info[HARDWARE_MAX_ITEM_LONGTH];
+ 	boadrid_start = strstr(saved_command_line, "board_id=");
+	boardvol_start = strstr(saved_command_line, "board_vol=");
+	memset(boardid_info, 0, HARDWARE_MAX_ITEM_LONGTH);
+	if (boadrid_start != NULL) {
+		boardvol_start = strstr(boadrid_start, ":board_vol=");
+		if (boardvol_start != NULL) {
+			strncpy(boardid_info, boadrid_start+sizeof("board_id=")-1, boardvol_start-(boadrid_start+sizeof("board_id=")-1));
+		} else {
+			strncpy(boardid_info, boadrid_start+sizeof("board_id=")-1, 9);
+		}
+	} else {
+		sprintf(boardid_info, "boarid not define!");
+	}
+ 	strcpy(board_id, boardid_info);
 }
 
 

@@ -1,4 +1,5 @@
 /* Copyright (c) 2012, 2017, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -121,4 +122,5 @@ int mdss_i2c_byte_write(struct i2c_client *client, uint8_t slave_addr,
 int mdss_prim_panel_fb_unblank(int timeout);
 #endif
 
+int mdss_prim_panel_fb_unblank(int timeout);
 #endif /* __MDSS_IO_UTIL_H__ */
