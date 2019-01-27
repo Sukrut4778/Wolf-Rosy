@@ -37,7 +37,7 @@
 	};
 };
 
-#include "msm8953-mdss-panels.dtsi"
+#include "qcom/msm8953-mdss-panels.dtsi"
 
 &tlmm {
 	pmx_mdss {
@@ -64,7 +64,7 @@
 	qcom,esd-check-enabled;
 };
 
-#include "msm8953-mdss-panels.dtsi"
+#include "qcom/msm8953-mdss-panels.dtsi"
 &mdss_mdp {
 	qcom,mdss-pref-prim-intf = "dsi";
 };

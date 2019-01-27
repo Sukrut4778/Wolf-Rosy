@@ -2356,7 +2356,7 @@
 #include "msm-pm8953.dtsi"
 #include "msm8953-regulator.dtsi"
 #include "msm-audio.dtsi"
-#include "msm8953-audio_rosy.dtsi"
+#include "rosy/msm8953-audio_rosy.dtsi"
 #include "msm-gdsc-8916.dtsi"
 #include "msm8953-camera.dtsi"
 #include "msm8953-mdss.dtsi"
