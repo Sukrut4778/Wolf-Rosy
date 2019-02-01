@@ -13,8 +13,8 @@
 
 /dts-v1/;
 
-#include "rosy/sdm450_rosy.dtsi"
-#include "rosy/msm8953-qrd-sku3_rosy.dtsi"
+#include "sdm450_rosy.dtsi"
+#include "msm8953-qrd-sku3_rosy.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. SDM450 QRD";
