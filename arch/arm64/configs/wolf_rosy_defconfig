@@ -435,7 +435,14 @@ CONFIG_CPU_IDLE_GOV_MENU=y
 # CPU frequency scaling drivers
 #
 # CONFIG_CPUFREQ_DT is not set
-CONFIG_CPU_BOOST=y
+CONFIG_CPU_INPUT_BOOST=y
+CONFIG_INPUT_BOOST_DURATION_MS=100
+CONFIG_WAKE_BOOST_DURATION_MS=300
+CONFIG_INPUT_BOOST_FREQ=1036800
+CONFIG_DEVFREQ_BOOST=y
+CONFIG_DEVFREQ_INPUT_BOOST_DURATION_MS=100
+CONFIG_DEVFREQ_WAKE_BOOST_DURATION_MS=300
+CONFIG_DEVFREQ_MSM_CPUBW_BOOST_FREQ=3221
 
 #
 # ARM CPU frequency scaling drivers
@@ -1396,12 +1403,6 @@ CONFIG_INPUT_HBTP_INPUT=y
 # CONFIG_INPUT_PIXART_OTS_PAT9125_SWITCH is not set
 # CONFIG_SENSORS_LTR553 is not set
 # CONFIG_SENSORS_BMA2X2 is not set
-CONFIG_INPUT_FINGERPRINT is not set
-CONFIG_FINGERPRINT_GOODIX_GF3208_MIDO is not set
-CONFIG_FINGERPRINT_FPC1020_MIDO is not set
-# CONFIG_FINGERPRINT_GOODIX_GF3208_TISSOT is not set
-# CONFIG_FINGERPRINT_FPC1020_TISSOT is not set
-
 #
 # Hardware I/O ports
 #
@@ -2100,50 +2101,6 @@ CONFIG_RADIO_ADAPTERS=y
 #
 CONFIG_MEDIA_SUBDRV_AUTOSELECT=y
 CONFIG_VIDEO_IR_I2C=y
-
-#
-# Audio decoders, processors and mixers
-#
-
-#
-# RDS decoders
-#
-
-#
-# Video decoders
-#
-
-#
-# Video and audio decoders
-#
-
-#
-# Video encoders
-#
-
-#
-# Camera sensor devices
-#
-
-#
-# Flash devices
-#
-
-#
-# Video improvement chips
-#
-
-#
-# Audio/Video compression chips
-#
-
-#
-# Miscellaneous helper chips
-#
-
-#
-# Sensors used on soc_camera driver
-#
 
 #
 # soc_camera sensor drivers
@@ -4542,9 +4499,3 @@ CONFIG_ARCH_SUPPORTS_ATOMIC_RMW=y
 CONFIG_MUTEX_SPIN_ON_OWNER=y
 CONFIG_RWSEM_SPIN_ON_OWNER=y
 CONFIG_FREEZER=y
-
-#
-# CPU BOOST
-#
-CONFIG_CPU_INPUT_BOOST=y
-CONFIG_DEVFREQ_BOOST=y
