@@ -16,7 +16,7 @@ CONFIG=wolf_miui_defconfig
 CORES=$(grep -c ^processor /proc/cpuinfo)
 THREAD="-j$CORES"
 CROSS_COMPILE+="ccache "
-CROSS_COMPILE+="/home/sukrutbhagwat4778/android/stock/bin/aarch64-linux-android-"
+CROSS_COMPILE+="/home/sukrut4778/android/stock/bin/aarch64-linux-android-"
 
 # Modules environtment
 OUTDIR="$PWD/out/"
@@ -24,7 +24,7 @@ SRCDIR="$PWD/"
 MODULEDIR="$PWD/AnyKernel2/modules/system/lib/modules/"
 PRIMA="$PWD/AnyKernel2/modules/system/vendor/lib/modules/wlan.ko"
 PRONTO="$PWD/AnyKernel2/modules/system/vendor/lib/modules/pronto/pronto_wlan.ko"
-STRIP="/home/sukrutbhagwat4778/android/stock/bin/$(echo "$(find "/home/sukrutbhagwat4778/android/stock/bin" -type f -name "aarch64-*-gcc")" | awk -F '/' '{print $NF}' |\
+STRIP="/home/sukrut4778/android/stock/bin/$(echo "$(find "/home/sukrut4778/android/stock/bin" -type f -name "aarch64-*-gcc")" | awk -F '/' '{print $NF}' |\
 			sed -e 's/gcc/strip/')"
 
 # Export
