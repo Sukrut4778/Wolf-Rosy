@@ -14,6 +14,16 @@
 
 #include "sched.h"
 
+/**
+ * sched_idle_set_state - Record idle state for the current CPU.
+ * @idle_state: State to record.
+ */
+void sched_idle_set_state(struct cpuidle_state *idle_state, int index)
+{
+	idle_set_state(this_rq(), idle_state);
+	idle_set_state_idx(this_rq(), index);
+}
+
 static int __read_mostly cpu_idle_force_poll;
 
 void cpu_idle_poll_ctrl(bool enable)
@@ -189,6 +199,8 @@ exit_idle:
  */
 static void cpu_idle_loop(void)
 {
+	int cpu = smp_processor_id();
+
 	while (1) {
 		/*
 		 * If the arch has a polling bit, we maintain an invariant:
@@ -207,7 +219,7 @@ static void cpu_idle_loop(void)
 			check_pgt_cache();
 			rmb();
 
-			if (cpu_is_offline(smp_processor_id()))
+			if (cpu_is_offline(cpu))
 				arch_cpu_idle_dead();
 
 			local_irq_disable();
